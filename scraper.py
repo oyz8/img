@@ -5,10 +5,9 @@ import os
 import json
 import re
 import shutil
-import traceback
 from urllib.parse import urlparse
 
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import cv2
 import boto3
@@ -26,13 +25,16 @@ BATCH_SIZE = 100
 TEMP_DIR = "temp_images"
 GALLERIES_FILE = "galleries.json"
 PROGRESS_FILE = "progress.json"
-IMAGES_JSON_FILE = "images.json"  # 仓库根目录
+IMAGES_JSON_FILE = "images.json"
 
-# ==== 请求头 ====
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Referer": "https://img.hyun.cc/",
-}
+# ==== 创建 cloudscraper 会话 ====
+scraper = cloudscraper.create_scraper(
+    browser={
+        'browser': 'chrome',
+        'platform': 'windows',
+        'mobile': False
+    }
+)
 
 
 def load_json(filepath: str, default=None):
@@ -105,9 +107,10 @@ def scrape_images(url: str) -> list[dict]:
     print(f"🌐 正在爬取: {url}")
     
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
+        resp = scraper.get(url, timeout=30)
         resp.raise_for_status()
         resp.encoding = 'utf-8'
+        print(f"✅ 页面请求成功，状态码: {resp.status_code}")
     except Exception as e:
         print(f"❌ 请求页面失败: {e}")
         return []
@@ -132,7 +135,7 @@ def scrape_images(url: str) -> list[dict]:
 
 def download_image(url: str, save_path: str) -> bool:
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=60, stream=True)
+        resp = scraper.get(url, timeout=60, stream=True)
         resp.raise_for_status()
         with open(save_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
@@ -180,7 +183,6 @@ def process_gallery(gallery: dict):
     
     r2_client = get_r2_client()
     
-    # 读取本地 images.json
     all_images = load_json(IMAGES_JSON_FILE, [])
     print(f"📋 现有记录: {len(all_images)} 条")
     
@@ -199,14 +201,11 @@ def process_gallery(gallery: dict):
         theme = get_image_theme(local_path) or "light"
         r2_key = f"{folder_name}/{filename}"
         
-        # 追加记录
         all_images.append({"name": r2_key, "theme": theme})
         new_count += 1
         
-        # 上传到 R2
         upload_to_r2(local_path, r2_key, r2_client)
     
-    # 保存 images.json 到仓库
     save_json(IMAGES_JSON_FILE, all_images)
     
     print(f"\n✅ 完成: {folder_name}")
