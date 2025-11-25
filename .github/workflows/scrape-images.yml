@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0
-          pip install requests beautifulsoup4 opencv-python-headless boto3 lxml
+          pip install requests beautifulsoup4 opencv-python-headless boto3 lxml cloudscraper
           
       - name: Run scraper
         env:
@@ -37,6 +37,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add progress.json images.json
+          git add progress.json images.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "Update progress [skip ci]"
-          git push
+          git push || true
