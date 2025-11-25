@@ -2,6 +2,8 @@ name: Scrape Images to R2
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'  
 
 jobs:
   scrape:
