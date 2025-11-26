@@ -1,39 +1,75 @@
 name: github
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:    # 手动触发
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '*/20 * * * *'    # 每20分钟自动运行一次
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write
+      contents: write    # 写入仓库内容权限
+      actions: write     # 删除工作流记录权限
     
     steps:
-      - name: Checkout repository
+      # 检出仓库代码
+      - name: 检出仓库
         uses: actions/checkout@v4
-          
-      - name: Set up Python
+      
+      # 设置 Python 环境
+      - name: 设置 Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install dependencies
+      
+      # 缓存 pip 依赖包
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      # 缓存 apt 包
+      - name: 缓存 apt 包
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-cache
+          key: ${{ runner.os }}-apt-libgl-libglib
+          restore-keys: |
+            ${{ runner.os }}-apt-
+      
+      # 安装系统依赖和 Python 包
+      - name: 安装依赖
         run: |
+          # 安装系统依赖
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0
+          # 安装 Python 依赖
           pip install cloudscraper beautifulsoup4 opencv-python-headless lxml
-          
-      - name: Run scraper
+      
+      # 运行爬虫脚本
+      - name: 运行爬虫
         run: python scraper.py
-        
-      - name: Commit and push
+      
+      # 提交并推送更改
+      - name: 提交并推送
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add -A
+          # 只有在有更改时才提交
           git diff --staged --quiet || git commit -m "Add images [skip ci]"
           git push
+      
+      # 清理旧的工作流运行记录，只保留最新4个
+      - name: 清理工作流记录
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 4    # 保留最新的4个运行记录
