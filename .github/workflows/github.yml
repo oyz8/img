@@ -1,4 +1,4 @@
-name: github
+name: 图片爬虫
 
 on:
   workflow_dispatch:    # 手动触发
