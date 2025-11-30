@@ -14,20 +14,16 @@ jobs:
       actions: write
     
     steps:
-      # 清理运行器磁盘空间（释放约25GB）
-      - name: 清理磁盘空间
-        run: |
-          echo "清理前:"
-          df -h /
-          
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo apt-get clean
-          
-          echo "清理后:"
-          df -h /
+      # 一行搞定清理
+      - name: 清理磁盘
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
 
       - name: 检出仓库
         uses: actions/checkout@v4
